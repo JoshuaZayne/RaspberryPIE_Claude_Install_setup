@@ -1,0 +1,16 @@
+# API keys and secrets
+.env
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Workspace user files
+workspace/
