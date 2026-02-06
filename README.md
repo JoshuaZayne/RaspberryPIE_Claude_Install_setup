@@ -74,7 +74,9 @@ docker compose up
 raspie/
 ├── run.py                    # Full auto-installer (sudo python3 run.py setup)
 ├── docker-compose.yml        # Runs Claude in a Docker container
-├── .env                      # Your API key (edit before using Docker)
+├── .env.example              # Template — copy to .env and add your key
+├── .env                      # Your API key (git-ignored, never pushed)
+├── .gitignore                # Keeps .env and other secrets out of git
 ├── bootstrap.sh              # Bash alternative to run.py
 ├── setup_raspberry_pi.py     # Standalone Python installer
 ├── cli-commands.txt          # Full CLI command reference
@@ -87,7 +89,8 @@ raspie/
 The included `docker-compose.yml` runs Claude Code inside a container with persistent config.
 
 ```bash
-# Edit your API key
+# Create your .env from the template and add your API key
+cp .env.example .env
 nano .env
 
 # Start (foreground)
@@ -113,7 +116,7 @@ docker compose down
 | Launch Claude | `claude` |
 | Launch in Docker | `docker compose up` |
 | Update Claude CLI | `sudo npm update -g @anthropic-ai/claude-code` |
-| Set API key | `export ANTHROPIC_API_KEY="sk-..."` |
+| Set API key | `cp .env.example .env && nano .env` |
 | Check Docker | `docker ps` |
 | View logs | `docker logs claude-code` |
 | Pi temperature | `vcgencmd measure_temp` |
@@ -161,6 +164,7 @@ rm -rf ~/claude-workspace
 - **npm install fails** — Try with `sudo`: `sudo npm install -g @anthropic-ai/claude-code`
 - **GLIBC errors** — You're likely on 32-bit Pi OS. Switch to 64-bit.
 - **Low memory** — Pi models with <2GB RAM may struggle. Use the Python SDK or curl approach instead of the full CLI.
+- **No .env file** — The `.env` file is git-ignored for security. Copy the template: `cp .env.example .env` and add your key.
 - **API key not working** — Verify at [console.anthropic.com](https://console.anthropic.com) that your key is active and has credits.
 
 ## License
