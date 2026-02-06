@@ -1,0 +1,138 @@
+============================================================
+  GETTING CLAUDE CODE RUNNING ON A RASPBERRY PI
+============================================================
+
+PREREQUISITES
+- Raspberry Pi 4 or 5 (recommended, 4GB+ RAM)
+- Raspberry Pi OS (64-bit recommended)
+- Active internet connection
+- An Anthropic API key (get one at https://console.anthropic.com)
+
+------------------------------------------------------------
+STEP 1: UPDATE YOUR SYSTEM
+------------------------------------------------------------
+sudo apt update && sudo apt upgrade -y
+
+------------------------------------------------------------
+STEP 2: INSTALL NODE.JS (v18 or later required)
+------------------------------------------------------------
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+sudo apt install -y nodejs
+
+Verify the installation:
+node --version
+npm --version
+
+------------------------------------------------------------
+STEP 3: INSTALL CLAUDE CODE
+------------------------------------------------------------
+npm install -g @anthropic-ai/claude-code
+
+------------------------------------------------------------
+STEP 4: SET YOUR ANTHROPIC API KEY
+------------------------------------------------------------
+Option A - Export for current session:
+export ANTHROPIC_API_KEY="your-api-key-here"
+
+Option B - Add permanently to your shell profile:
+echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.bashrc
+source ~/.bashrc
+
+------------------------------------------------------------
+STEP 5: LAUNCH CLAUDE CODE
+------------------------------------------------------------
+claude
+
+------------------------------------------------------------
+ALTERNATIVE: USE CLAUDE VIA THE API WITH CURL
+------------------------------------------------------------
+If you just want to send prompts to Claude via the API:
+
+curl https://api.anthropic.com/v1/messages \
+  -H "content-type: application/json" \
+  -H "x-api-key: your-api-key-here" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-sonnet-4-5-20250929",
+    "max_tokens": 1024,
+    "messages": [
+      {"role": "user", "content": "Hello, Claude!"}
+    ]
+  }'
+
+------------------------------------------------------------
+ALTERNATIVE: USE CLAUDE VIA PYTHON
+------------------------------------------------------------
+Install Python and the Anthropic SDK:
+sudo apt install -y python3 python3-pip
+pip3 install anthropic
+
+Create a script (example: claude_chat.py):
+
+    import anthropic
+
+    client = anthropic.Anthropic()  # uses ANTHROPIC_API_KEY env var
+    message = client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=1024,
+        messages=[
+            {"role": "user", "content": "Hello, Claude!"}
+        ]
+    )
+    print(message.content[0].text)
+
+Run it:
+python3 claude_chat.py
+
+------------------------------------------------------------
+DOCKER METHOD: RUN CLAUDE IN A CONTAINER
+------------------------------------------------------------
+This project includes a docker-compose.yml for running
+Claude Code inside a Docker container.
+
+1. Copy the raspie folder to your Pi.
+
+2. Edit the .env file and paste your real API key:
+   nano .env
+
+3. Start the container:
+   cd raspie
+   docker compose up
+
+4. To run in the background (detached):
+   docker compose up -d
+
+5. Attach to the running Claude session:
+   docker attach claude-code
+
+6. Detach without stopping:  press  Ctrl+P  then  Ctrl+Q
+
+7. Stop the container:
+   docker compose down
+
+NOTES:
+- Put your project files in the "workspace/" folder.
+  They are mounted inside the container at /workspace.
+- Claude config is persisted in a Docker volume so you
+  don't have to reconfigure between restarts.
+
+------------------------------------------------------------
+TROUBLESHOOTING
+------------------------------------------------------------
+- If "npm install -g" fails with permission errors, run:
+  sudo npm install -g @anthropic-ai/claude-code
+
+- If node is too old, remove it and reinstall:
+  sudo apt remove nodejs
+  Then repeat Step 2.
+
+- If you get "GLIBC" errors, make sure you are running
+  64-bit Raspberry Pi OS (not 32-bit).
+
+- For Pi 3 or older models with limited RAM, the Python SDK
+  or curl approach will use less memory than Claude Code.
+
+- Make sure your API key is valid and has available credits
+  at https://console.anthropic.com
+
+============================================================

@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  claude:
+    image: node:20-slim
+    container_name: claude-code
+    stdin_open: true    # -i  (keeps STDIN open for interactive use)
+    tty: true           # -t  (allocates a pseudo-TTY)
+    restart: unless-stopped
+    working_dir: /workspace
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      # Mount a workspace folder so Claude can read/edit your project files
+      - ./workspace:/workspace
+      # Persist Claude config between restarts
+      - claude-config:/root/.claude
+      # Persist npm global cache so reinstalls are fast
+      - npm-cache:/root/.npm
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "════════════════════════════════════════════"
+        echo "  Installing Claude Code CLI …"
+        echo "════════════════════════════════════════════"
+        npm install -g @anthropic-ai/claude-code --loglevel=warn
+        echo ""
+        echo "  Claude Code is ready.  Launching …"
+        echo "════════════════════════════════════════════"
+        exec claude
+
+volumes:
+  claude-config:
+  npm-cache:

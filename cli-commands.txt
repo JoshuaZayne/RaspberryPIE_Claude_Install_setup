@@ -1,0 +1,257 @@
+============================================================
+  RASPBERRY PI  –  CLAUDE WORKSPACE CLI COMMANDS
+============================================================
+
+All commands assume you are on your Raspberry Pi.
+Your workspace lives at:  ~/claude-workspace/
+
+
+============================================================
+  SETUP
+============================================================
+
+sudo python3 run.py setup
+    Runs the full auto-installer. Installs Docker,
+    Docker Compose, Node.js, npm, Claude Code CLI,
+    and the Anthropic Python SDK. Creates all project
+    files. Only needs to be run once.
+
+sudo python3 run.py help
+    Shows usage info for run.py.
+
+
+============================================================
+  LAUNCHING CLAUDE
+============================================================
+
+claude
+    Starts Claude Code CLI directly in your terminal.
+    Works from any directory. Requires ANTHROPIC_API_KEY
+    to be set in your environment.
+
+./start-claude.sh
+    Interactive launcher — lets you pick between running
+    Claude natively or inside a Docker container.
+    Run from ~/claude-workspace/.
+
+cd ~/claude-workspace && docker compose up
+    Starts Claude inside a Docker container (foreground).
+    You can type directly into the Claude session.
+    Press Ctrl+C to stop.
+
+cd ~/claude-workspace && docker compose up -d
+    Starts Claude container in the background (detached).
+    Runs silently — use "docker attach" to connect.
+
+docker attach claude-code
+    Attach your terminal to the running Claude container.
+    Use this after "docker compose up -d".
+    To detach without stopping:  press Ctrl+P then Ctrl+Q
+
+docker compose down
+    Stops and removes the Claude container.
+    Run from ~/claude-workspace/.
+
+docker compose restart
+    Restarts the Claude container.
+    Run from ~/claude-workspace/.
+
+
+============================================================
+  API KEY MANAGEMENT
+============================================================
+
+export ANTHROPIC_API_KEY="sk-ant-..."
+    Sets your API key for the current terminal session.
+    Lost when you close the terminal.
+
+echo 'export ANTHROPIC_API_KEY="sk-ant-..."' >> ~/.bashrc && source ~/.bashrc
+    Saves your API key permanently. Loads automatically
+    every time you open a new terminal.
+
+nano ~/claude-workspace/.env
+    Edit the .env file to set/change your API key.
+    Used by Docker Compose when launching the container.
+
+echo $ANTHROPIC_API_KEY
+    Check if your API key is set in the current session.
+    Should print your key. If blank, it's not set.
+
+
+============================================================
+  DOCKER MANAGEMENT
+============================================================
+
+docker ps
+    List all running containers. You should see
+    "claude-code" if the Claude container is running.
+
+docker ps -a
+    List all containers, including stopped ones.
+
+docker logs claude-code
+    View the output/logs from the Claude container.
+    Useful for debugging startup issues.
+
+docker logs -f claude-code
+    Follow (stream) logs in real time. Press Ctrl+C
+    to stop following.
+
+docker exec -it claude-code bash
+    Open a bash shell inside the running Claude
+    container. Useful for poking around or debugging.
+
+docker images
+    List all downloaded Docker images.
+
+docker system prune -f
+    Clean up unused containers, networks, and dangling
+    images. Frees disk space. Does NOT remove running
+    containers or named volumes.
+
+docker volume ls
+    List all Docker volumes. You should see
+    claude-config and npm-cache.
+
+docker compose pull
+    Pull the latest version of the node:20-slim image.
+    Run from ~/claude-workspace/.
+
+
+============================================================
+  NODE.JS & NPM
+============================================================
+
+node --version
+    Check which version of Node.js is installed.
+    Should be v20.x or higher.
+
+npm --version
+    Check which version of npm is installed.
+
+npm update -g @anthropic-ai/claude-code
+    Update Claude Code CLI to the latest version.
+
+npm list -g --depth=0
+    List all globally installed npm packages.
+
+
+============================================================
+  SYSTEM & DIAGNOSTICS
+============================================================
+
+uname -m
+    Show your Pi's architecture.
+    aarch64 = 64-bit  |  armv7l = 32-bit
+
+cat /proc/device-tree/model
+    Show your Raspberry Pi model (Pi 4, Pi 5, etc.)
+
+free -h
+    Show RAM usage. Check you have enough memory.
+
+df -h /
+    Show disk space usage on the root partition.
+
+vcgencmd measure_temp
+    Show the CPU temperature. Keep it under 80C.
+    If running hot, consider a heatsink or fan.
+
+htop
+    Interactive process viewer. See CPU, RAM, and
+    running processes. Press Q to quit.
+    Install first if needed:  sudo apt install htop
+
+uptime
+    Show how long the Pi has been running and the
+    load averages.
+
+sudo systemctl status docker
+    Check if the Docker service is running.
+
+ping -c3 google.com
+    Quick internet connectivity check.
+
+
+============================================================
+  WORKSPACE & FILES
+============================================================
+
+ls ~/claude-workspace/
+    List all files in your Claude workspace.
+
+ls ~/claude-workspace/workspace/
+    List files in the mounted workspace folder.
+    This is what Claude sees inside the container.
+
+nano ~/claude-workspace/docker-compose.yml
+    Edit the Docker Compose config if you need to
+    change ports, volumes, or environment variables.
+
+nano ~/claude-workspace/.env
+    Edit your environment variables (API key).
+
+
+============================================================
+  UPDATING EVERYTHING
+============================================================
+
+sudo apt update && sudo apt upgrade -y
+    Update all system packages on the Pi.
+
+sudo npm update -g @anthropic-ai/claude-code
+    Update Claude Code to the latest release.
+
+pip3 install --user --upgrade anthropic
+    Update the Anthropic Python SDK.
+
+cd ~/claude-workspace && docker compose pull && docker compose up -d
+    Pull the latest Docker image and restart the
+    Claude container with the new version.
+
+
+============================================================
+  UNINSTALLING
+============================================================
+
+sudo npm uninstall -g @anthropic-ai/claude-code
+    Remove the Claude Code CLI.
+
+pip3 uninstall anthropic
+    Remove the Anthropic Python SDK.
+
+cd ~/claude-workspace && docker compose down -v
+    Stop the container AND delete its volumes
+    (config cache, npm cache).
+
+sudo apt remove docker-ce docker-ce-cli containerd.io
+    Remove Docker from the system.
+
+rm -rf ~/claude-workspace
+    Delete the entire workspace folder and all files.
+
+
+============================================================
+  QUICK REFERENCE CHEAT SHEET
+============================================================
+
+  ACTION                          COMMAND
+  ─────────────────────────────   ──────────────────────────
+  Full install                    sudo python3 run.py setup
+  Launch Claude (native)          claude
+  Launch Claude (picker)          ./start-claude.sh
+  Launch Claude (Docker)          docker compose up
+  Launch Claude (background)      docker compose up -d
+  Attach to Claude container      docker attach claude-code
+  Detach from container           Ctrl+P, Ctrl+Q
+  Stop container                  docker compose down
+  View container logs             docker logs claude-code
+  Update Claude CLI               sudo npm update -g @anthropic-ai/claude-code
+  Check API key                   echo $ANTHROPIC_API_KEY
+  Set API key                     export ANTHROPIC_API_KEY="sk-..."
+  Check Docker status             docker ps
+  Check Pi temp                   vcgencmd measure_temp
+  Check disk space                df -h /
+  Check memory                    free -h
+
+============================================================
