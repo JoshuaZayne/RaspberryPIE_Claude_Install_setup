@@ -5,6 +5,7 @@ Raspberry Pi Claude Installer
 One command:   sudo python3 run.py setup
 
 Installs and configures:
+  - Swap space (prevents freezing on 4GB Pi)
   - System updates & essentials
   - Docker & Docker Compose
   - Node.js 20 & npm
@@ -29,21 +30,26 @@ X  = "\033[0m"    # reset
 
 
 # ── Helpers ──────────────────────────────────────────────────────
-def ok(msg):   print(f"{G}{B}[OK]{X} {msg}")
-def warn(msg): print(f"{Y}[!!]{X} {msg}")
-def err(msg):  print(f"{R}[XX]{X} {msg}")
-def info(msg): print(f"{C}  -> {X}{msg}")
+def ok(msg):   print(f"{G}{B}[OK]{X} {msg}", flush=True)
+def warn(msg): print(f"{Y}[!!]{X} {msg}", flush=True)
+def err(msg):  print(f"{R}[XX]{X} {msg}", flush=True)
+def info(msg): print(f"{C}  -> {X}{msg}", flush=True)
 
-def run(cmd, desc=None, check=True):
+def run(cmd, desc=None, check=True, show_output=False):
+    """Run a shell command. show_output=True streams output live (for long tasks)."""
     if desc:
         info(desc)
     try:
-        subprocess.run(cmd, shell=True, check=check,
-                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        if show_output:
+            # Stream output live so the user sees progress
+            result = subprocess.run(cmd, shell=True, check=check)
+        else:
+            result = subprocess.run(cmd, shell=True, check=check,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         return True
     except subprocess.CalledProcessError as e:
         err(f"Failed: {cmd}")
-        if e.stdout:
+        if hasattr(e, 'stdout') and e.stdout:
             print(e.stdout[-600:])
         if check:
             sys.exit(1)
@@ -124,67 +130,116 @@ def preflight():
     print()
 
 
+# ── Swap setup (prevents freezing) ───────────────────────────────
+def setup_swap():
+    print(f"\n{B}[0/8] Setting up swap space{X}")
+
+    # Check existing swap
+    try:
+        out = subprocess.run("swapon --show --noheadings", shell=True,
+                             capture_output=True, text=True)
+        if out.stdout.strip():
+            warn("Swap already active:")
+            print(f"    {out.stdout.strip()}")
+            return
+    except Exception:
+        pass
+
+    # Create 2GB swap file
+    swap_file = "/swapfile"
+    if not os.path.exists(swap_file):
+        info("Creating 2GB swap file (this takes a moment)...")
+        run("dd if=/dev/zero of=/swapfile bs=1M count=2048 status=progress",
+            show_output=True, check=True)
+        run("chmod 600 /swapfile")
+        run("mkswap /swapfile", "Formatting swap")
+
+    run("swapon /swapfile", "Activating swap")
+
+    # Make persistent across reboots
+    try:
+        with open("/etc/fstab") as f:
+            fstab = f.read()
+        if "/swapfile" not in fstab:
+            with open("/etc/fstab", "a") as f:
+                f.write("\n/swapfile none swap sw 0 0\n")
+            info("Added swap to /etc/fstab")
+    except Exception:
+        pass
+
+    ok("2GB swap active (total memory now ~6GB)")
+
+
 # ── Installers ───────────────────────────────────────────────────
 def install_updates():
-    print(f"\n{B}[1/7] System update{X}")
-    run("apt-get update -y -qq", "apt update")
-    run("apt-get upgrade -y -qq", "apt upgrade")
-    run("apt-get install -y -qq curl wget git ca-certificates gnupg lsb-release",
-        "Installing essentials")
+    print(f"\n{B}[1/8] System update{X}")
+    info("This step can take 5-15 minutes on first run. Output shown below:")
+    run("apt-get update -y", "Updating package lists...", show_output=True)
+    run("apt-get upgrade -y", "Upgrading packages (be patient)...", show_output=True)
+    run("apt-get install -y curl wget git ca-certificates gnupg lsb-release",
+        "Installing essentials", show_output=True)
+    # Free memory after big upgrade
+    run("apt-get clean", "Clearing apt cache")
     ok("System up to date")
 
 
 def install_docker():
-    print(f"\n{B}[2/7] Docker{X}")
+    print(f"\n{B}[2/8] Docker{X}")
     if has("docker"):
         warn("Docker already installed")
     else:
         run("curl -fsSL https://get.docker.com -o /tmp/get-docker.sh", "Downloading installer")
-        run("sh /tmp/get-docker.sh", "Installing Docker")
+        info("Installing Docker (this takes a few minutes)...")
+        run("sh /tmp/get-docker.sh", show_output=True)
     run("systemctl enable docker && systemctl start docker", "Enabling service")
     run(f"usermod -aG docker {real_user()}", f"Adding {real_user()} to docker group")
     ok("Docker ready")
 
 
 def install_compose():
-    print(f"\n{B}[3/7] Docker Compose{X}")
+    print(f"\n{B}[3/8] Docker Compose{X}")
     if run("docker compose version", check=False):
         warn("Docker Compose already installed")
     else:
-        run("apt-get install -y -qq docker-compose-plugin", "Installing compose plugin")
+        run("apt-get install -y docker-compose-plugin", "Installing compose plugin",
+            show_output=True)
     ok("Docker Compose ready")
 
 
 def install_node():
-    print(f"\n{B}[4/7] Node.js & npm{X}")
+    print(f"\n{B}[4/8] Node.js & npm{X}")
     if has("node") and node_major() >= 18:
         warn(f"Node v{node_major()} already installed")
     else:
         if has("node"):
-            run("apt-get remove -y -qq nodejs", "Removing old node")
-        run("curl -fsSL https://deb.nodesource.com/setup_20.x | bash -", "Adding NodeSource repo")
-        run("apt-get install -y -qq nodejs", "Installing Node 20")
+            run("apt-get remove -y nodejs", "Removing old node", show_output=True)
+        run("curl -fsSL https://deb.nodesource.com/setup_20.x | bash -",
+            "Adding NodeSource repo", show_output=True)
+        run("apt-get install -y nodejs", "Installing Node 20", show_output=True)
     ok("Node & npm ready")
 
 
 def install_claude_cli():
-    print(f"\n{B}[5/7] Claude Code CLI{X}")
-    run("npm install -g @anthropic-ai/claude-code --loglevel=warn", "Installing via npm")
+    print(f"\n{B}[5/8] Claude Code CLI{X}")
+    info("Installing via npm (this can take a few minutes on Pi)...")
+    # Limit npm memory to avoid OOM on Pi
+    run("NODE_OPTIONS='--max-old-space-size=512' npm install -g @anthropic-ai/claude-code",
+        show_output=True)
     ok("Claude Code CLI installed")
 
 
 def install_python_sdk():
-    print(f"\n{B}[6/7] Anthropic Python SDK{X}")
-    run("apt-get install -y -qq python3-pip python3-venv", "Ensuring pip")
+    print(f"\n{B}[6/8] Anthropic Python SDK{X}")
+    run("apt-get install -y python3-pip python3-venv", "Ensuring pip", show_output=True)
     u = real_user()
     run(f'sudo -u {u} pip3 install --user --break-system-packages anthropic 2>/dev/null '
         f'|| sudo -u {u} pip3 install --user anthropic',
-        "Installing SDK", check=False)
+        "Installing SDK", check=False, show_output=True)
     ok("Python SDK installed")
 
 
 def scaffold():
-    print(f"\n{B}[7/7] Creating project files{X}")
+    print(f"\n{B}[7/8] Creating project files{X}")
 
     base = os.path.join(real_home(), "claude-workspace")
     ws   = os.path.join(base, "workspace")
@@ -330,6 +385,7 @@ def setup():
 ╚═══════════════════════════════════════════════════════╝{X}
 """)
     preflight()
+    setup_swap()
     install_updates()
     install_docker()
     install_compose()
