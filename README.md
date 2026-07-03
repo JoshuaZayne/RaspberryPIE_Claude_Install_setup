@@ -77,8 +77,8 @@ raspie/
 ├── .env.example              # Template — copy to .env and add your key
 ├── .env                      # Your API key (git-ignored, never pushed)
 ├── .gitignore                # Keeps .env and other secrets out of git
-├── bootstrap.sh              # Bash alternative to run.py
-├── setup_raspberry_pi.py     # Standalone Python installer
+├── bootstrap.sh              # Thin wrapper — calls run.py setup
+├── setup_raspberry_pi.py     # Thin wrapper — calls run.py setup
 ├── cli-commands.txt          # Full CLI command reference
 ├── claude-setup-guide.txt    # Step-by-step manual setup guide
 └── workspace/                # Mounted into the Docker container
